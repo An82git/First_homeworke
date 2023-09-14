@@ -16,8 +16,8 @@ known_expansion = []
 not_known_expansion = []
 
 
-CREATE_NEW_DIR = ['images', 'video', 'documents', 'audio', 'archives']
 MAIN_DIR = Path(' '.join(sys.argv).replace(sys.argv[0], '').strip())
+CREATE_NEW_DIR = ['images', 'video', 'documents', 'audio', 'archives']
 CYRILLIC_SYMBOLS = "абвгдежзийклмнопрстуфхцчшщьюяєіїґ"
 TRANSLATION = ("a", "b", "v", "g", "d", "e", "j", "z", "i", "j", "k", "l", "m", "n", "o", "p", "r", "s", "t", "u",
                "f", "h", "ts", "ch", "sh", "sch", "", "yu", "ya", "je", "i", "ji", "g")
@@ -60,6 +60,18 @@ def sort_directory(path:Path) -> None:
                                     'audio':audio,'archives':archives,'unknown':unknown})
 
 
+def muve_file() -> None:
+    for key, value in sort_directory_list.items():
+        for item in value:
+            if key == 'archives':
+                shutil.unpack_archive(item[0], MAIN_DIR.joinpath(f'{key}/{normalize(Path(item[0]).name.removesuffix(Path(item[0]).suffix))}'))
+                shutil.move(item[0], MAIN_DIR.joinpath(normalize(Path(item[0]).name)))
+            elif key == 'unknown':
+                shutil.move(item[0], MAIN_DIR.joinpath(normalize(Path(item[0]).name)))
+            elif not key == 'directory':
+                shutil.move(item[0], MAIN_DIR.joinpath(f'{key}/{normalize(Path(item[0]).name)}'))
+
+
 def normalize(string:str) -> str:
     return re.sub(r'[^A-Za-z0-9./]' , '_', 
                   string.removeprefix(str(MAIN_DIR.joinpath()).replace(chr(92), '/')).translate(TRANS)).removeprefix('/')
@@ -97,25 +109,32 @@ def type_archives() -> None:
     for key, value in sort_directory_list.items():
         for item in value:
             if key == 'archives':
-                shutil.unpack_archive(item[0], MAIN_DIR.joinpath(f'archives/{normalize(Path(item[0]).name.removesuffix(Path(item[0]).suffix))}'))                
-                Path(item[0]).unlink()
+                shutil.unpack_archive(item[0], MAIN_DIR.joinpath(f'archives/{normalize(Path(item[0]).name.removesuffix(Path(item[0]).suffix))}'))
+                shutil.move(item[0], MAIN_DIR.joinpath(f'archives/{normalize(Path(item[0]).name)}'))
+
+
+def type_unknown() -> None:
+    for key, value in sort_directory_list.items():
+        for item in value:
+            if key == 'unknown':
+                shutil.move(item[0], MAIN_DIR)
 
 
 def remove_folder(path:Path) -> None:
-    for file in path.glob('**/*'):
-        try:
-            file.rmdir()
-        except OSError:
-            remove_folder(file)
+    for namber in range(2):
+        for file in path.glob('**/*'):
+            try:
+                file.rmdir()
+            except OSError:
+                remove_folder(file)
 
 
 def create_folder(name_folder:list) -> None:
-    file_and_dir = []
-    for item in Path(MAIN_DIR).iterdir():
-        file_and_dir.append(item.name)
     for dir in name_folder:
-        if not dir in file_and_dir:
-            Path.mkdir(MAIN_DIR.joinpath(dir))
+        try:
+            MAIN_DIR.joinpath(dir).mkdir()
+        except FileExistsError:
+            pass
 
 
 def normalize_folder_and_file(path:Path) -> None:
@@ -124,7 +143,13 @@ def normalize_folder_and_file(path:Path) -> None:
         
 
 def main() -> None:
-    sort_directory(MAIN_DIR)
+    try:
+        sort_directory(MAIN_DIR)
+        if str(MAIN_DIR) == '.':
+            return print('No path to folder')
+    except FileNotFoundError:
+        return print('The system cannot find the specified path')
+    
     for key, value in sort_directory_list.items():
         directory_list = []
         if not key == 'directory':
@@ -136,13 +161,16 @@ def main() -> None:
 
     create_folder(CREATE_NEW_DIR)
 
-    type_images()
-    type_video()
-    type_documents()
-    type_audio()
-    type_archives()
+    # type_images()
+    # type_video()
+    # type_documents()
+    # type_audio()
+    # type_archives()
+    # type_unknown()
 
-    normalize_folder_and_file(MAIN_DIR)
+    muve_file()
+
+    # normalize_folder_and_file(MAIN_DIR)
 
     remove_folder(MAIN_DIR)
 
